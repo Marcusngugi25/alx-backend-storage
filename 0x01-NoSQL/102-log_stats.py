@@ -1,40 +1,32 @@
 #!/usr/bin/env python3
 """Module containing script that returns Nginx stats stored in MongoDB"""
-import pymongo
+from pymongo import MongoClient
 
 
-def collection(db: dict) -> int:
-    """Function to retrieve logs information"""
-    client = pymongo.MongoClient('mongodb://127.0.0.1:27017')
-    logs = client.logs.nginx
-    return logs.count_documents(db)
+def print_nginx_request_logs(nginx_collection):
+    """script that provides some stats about Nginx logs stored in MongoDB.
+
+    Args:
+        nginx_collection (pymongo.collection.Collection): collection to analyze
+    """
+    print('{} logs'.format(nginx_collection.count_documents({})))
+    print('Methods:')
+    methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
+    for method in methods:
+        req_count = len(list(nginx_collection.find({'method': method})))
+        print('\tmethod {}: {}'.format(method, req_count))
+    status_checks_count = len(list(
+        nginx_collection.find({'method': 'GET', 'path': '/status'})
+    ))
+    print('{} status check'.format(status_checks_count))
 
 
-def main():
-    """Function that returns stats about Nginx logs stored in MongoDB"""
-
-    print(f"{collection({})} logs")
-    print("Methods:")
-    print(f"\tmethod GET: {collection({'method': 'GET'})}")
-    print(f"\tmethod POST: {collection({'method': 'POST'})}")
-    print(f"\tmethod PUT: {collection({'method': 'PUT'})}")
-    print(f"\tmethod PATCH: {collection({'method': 'PATCH'})}")
-    print(f"\tmethod DELETE: {collection({'method': 'DELETE'})}")
-    print(f"{collection({'method': 'GET', 'path': '/status'})} status check")
-
-    print("IPs:")
-    client = pymongo.MongoClient('mongodb://127.0.0.1:27017')
-    logs = client.logs.nginx
-    ips = logs.aggregate(
-            [{"$group": {"_id": "$ip", "count": {"$sum": 1}}},
-                {"$sort": {"count": -1}}])
-    count = 0
-    for ip in ips:
-        if count == 10:
-            break
-        print(f"\t{ip.get('_id')}: {ip.get('count')}")
-        count += 1
+def run():
+    """Provides some stats about Nginx logs stored in MongoDB.
+    """
+    client = MongoClient('mongodb://127.0.0.1:27017')
+    print_nginx_request_logs(client.logs.nginx)
 
 
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    run()
